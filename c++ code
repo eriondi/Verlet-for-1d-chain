@@ -1,0 +1,97 @@
+#define _USE_MATH_DEFINES
+
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <cmath>
+
+using namespace std;
+
+static double calculatePotentialEnergy(double k, double m, double l, double x1, double x2) {
+    double omega0 = sqrt(k / m);
+    return 0.5 * k * ((x2 - x1 - l) * (x2 - x1 - l)) - m * omega0 * omega0 * x1 * x1;
+}
+
+static double calculateKineticEnergy(double m, double v) {
+    return 0.5 * m * v * v;
+}
+
+int main() {
+    int step = 0;
+
+    const int N = 10;
+    const double l = 1.0;
+    const double k = 1.0;
+    const double m = 1.0;
+    const double a = 1.0;
+
+    double t = 0;
+    double h = 0.001;
+    double t_total = 20;
+
+    ofstream positionsFile("positions.txt");
+    ofstream velocitiesFile("velocities.txt");
+    ofstream energyFile("energy.txt");
+
+    vector<double> positions(N + 2);
+    vector<double> velocities(N + 2);
+
+    // Initialization of position and velocity arrays
+    for (int i = 1; i <= N; ++i) {
+        double q = 2 * M_PI * (i + 1) / N;
+        double omega = 2 * sqrt(k / m) * abs(sin(q / 2));
+
+        double position = a * cos(q);
+        double velocity = -a * omega * sin(q);
+
+        positions[i] = position;
+        velocities[i] = velocity;
+    }
+
+    // Set boundary conditions
+    positions[0] = positions[N];
+    positions[N + 1] = positions[1];
+    velocities[0] = velocities[N];
+    velocities[N + 1] = velocities[1];
+
+
+    while (t < t_total) {
+        for (int j = 1; j <= N; ++j) {
+            double f_old = k * (positions[j - 1] - positions[j] - l);
+
+            positions[j] += h * velocities[j] + (h * h * f_old) / (2 * m);
+            positions[j - 1] += h * velocities[j - 1] - (h * h * f_old) / (2 * m);
+
+            double f_new = k * (positions[j - 1] - positions[j] - l);
+
+            velocities[j] += (h / (2 * m)) * (f_old + f_new);
+            velocities[j - 1] -= (h / (2 * m)) * (f_old + f_new);
+        }
+
+        if (step % 10 == 0) {
+            double p_ener = 0.0;
+            double k_ener = 0.0;
+            double total_ener = 0.0;
+            positionsFile << t << " ";
+            velocitiesFile << t << " ";
+            for (int z = 1; z <= N; ++z) {
+                positionsFile << positions[z] << " ";
+                velocitiesFile << velocities[z] << " ";
+                p_ener += calculatePotentialEnergy(k, m, l, positions[z - 1], positions[z]);
+                k_ener += calculateKineticEnergy(m, velocities[z]);
+            }
+            total_ener = p_ener + k_ener;
+            positionsFile << endl;
+            velocitiesFile << endl;
+            energyFile << t << " " << p_ener << " " << k_ener << " " << total_ener << endl;
+        }
+
+        t += h;
+        step++;
+    }
+
+    positionsFile.close();
+    velocitiesFile.close();
+    energyFile.close();
+    return 0;
+}
